@@ -1,0 +1,27 @@
+{
+  "name": "file-output",
+  "version": "1.0.0",
+  "description": "Manage reading, writing, and updating files.",
+  "main": "lib/index.js",
+  "type": "module",
+  "directories": {
+    "lib": "lib"
+  },
+  "dependencies": {
+    "typescript": "^4.1.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "build:watch": "tsc -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChocolateLoverRaj/file-output.git"
+  },
+  "author": "Rajas Paranjpe",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ChocolateLoverRaj/file-output/issues"
+  },
+  "homepage": "https://github.com/ChocolateLoverRaj/file-output#readme"
+}
