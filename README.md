@@ -1,2 +1,2 @@
 # file-output
-Manage r
+Manage reading, writing, and updating files.
