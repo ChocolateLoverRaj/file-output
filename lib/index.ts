@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { PassThrough, Readable } from 'stream'
+import { PassThrough } from 'stream'
 
 type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
@@ -63,13 +63,23 @@ class FileOutput {
         const write = (output: BuilderReturns) => {
             console.log('write away!', output)
         }
+        const stream = (output: BuilderReadable) => {
+            console.log('Streams not supported yet')
+        }
         if (typeof builder === 'function') {
             const callback: Callback = getCallback()
-            builder(callback)
-        } else if (builder) {
-
-        } else {
+            const output = builder(callback)
+            if (typeof output === 'string' || output instanceof Uint8Array) {
+                write(output)
+            } else if (output && 'pipe' in output) {
+                stream(output)
+            } else if (output) {
+                write(await output)
+            }
+        } else if (typeof builder === 'string' || builder instanceof Uint8Array) {
             write(builder)
+        } else {
+            stream(builder)
         }
     }
 }
