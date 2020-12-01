@@ -7,14 +7,21 @@ type CallbackPromise = Promise<void>
 interface CallbackWithPromise {
     promise: CallbackPromise
 }
-type Callback = CallbackFn & CallbackWithPromise & CallbackPromise
+interface CallbackCancelled {
+    canceled: boolean
+}
+type Callback = CallbackFn & CallbackCancelled & CallbackWithPromise & CallbackPromise
 function getCallback(): Callback {
     const callbackFn: CallbackFn = () => { }
+    const callbackCancelled: CallbackCancelled = {
+        canceled: false
+    }
     const callbackWithPromise: CallbackWithPromise = {
         promise: new Promise(() => { })
     }
-    const callback: Callback = Object.assign<CallbackFn, CallbackWithPromise, CallbackPromise>(
+    const callback: Callback = Object.assign<CallbackFn, CallbackCancelled, CallbackWithPromise, CallbackPromise>(
         callbackFn,
+        callbackCancelled,
         callbackWithPromise,
         {
             [Symbol.toStringTag]: 'Callback',

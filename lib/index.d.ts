@@ -6,7 +6,10 @@ declare type CallbackPromise = Promise<void>;
 interface CallbackWithPromise {
     promise: CallbackPromise;
 }
-declare type Callback = CallbackFn & CallbackWithPromise & CallbackPromise;
+interface CallbackCancelled {
+    canceled: boolean;
+}
+declare type Callback = CallbackFn & CallbackCancelled & CallbackWithPromise & CallbackPromise;
 declare type BuilderReturns = string | Buffer;
 declare type Builder = BuilderReturns | ((callback?: Callback) => void | BuilderReturns | Promise<BuilderReturns>) | Readable;
 declare class FileOutput {
