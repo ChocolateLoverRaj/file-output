@@ -1,17 +1,14 @@
 /// <reference types="node" />
 import { EventEmitter } from 'events';
-import { PassThrough } from 'stream';
-declare class Canceler extends PassThrough implements Promise<void> {
-    [Symbol.toStringTag]: string;
-    promise: Promise<void>;
-    canceled: boolean;
-    constructor(emitter: EventEmitter);
-    then<TResult1 = void, TResult2 = never>(onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): Promise<TResult1 | TResult2>;
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): Promise<TResult>;
-    finally(onfinally?: (() => void) | undefined | null): Promise<void>;
+import Readable from 'stream';
+declare type CallbackFn = () => void;
+declare type CallbackPromise = Promise<void>;
+interface CallbackWithPromise {
+    promise: CallbackPromise;
 }
+declare type Callback = CallbackFn & CallbackWithPromise & CallbackPromise;
 declare type BuilderReturns = string | Buffer;
-declare type Builder = BuilderReturns | ((canceler?: Canceler) => void | BuilderReturns | Promise<BuilderReturns> | ReadableStream);
+declare type Builder = BuilderReturns | ((callback?: Callback) => void | BuilderReturns | Promise<BuilderReturns>) | Readable;
 declare class FileOutput {
     outputPath: string;
     emitter: EventEmitter;

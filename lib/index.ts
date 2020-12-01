@@ -1,31 +1,33 @@
 import { EventEmitter, once } from 'events'
-import { PassThrough } from 'stream'
+import Readable from 'stream'
 import { writeFile } from 'fs/promises'
 
-class Canceler extends PassThrough implements Promise<void> {
-    [Symbol.toStringTag] = 'Manager'
-    promise: Promise<void>
-    canceled: boolean = false
-
-    constructor(emitter: EventEmitter) {
-        super()
-        this.promise = once(emitter, 'cancel').then(() => {
-            this.canceled = true
-        })
-    }
-
-    then<TResult1 = void, TResult2 = never>(onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null) {
-        return this.promise.then<TResult1, TResult2>(onfulfilled, onrejected)
-    }
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null) {
-        return this.promise.then<TResult>(onrejected)
-    }
-    finally(onfinally?: (() => void) | undefined | null) {
-        return this.promise.finally(onfinally)
-    }
+type CallbackFn = () => void
+type CallbackPromise = Promise<void>
+interface CallbackWithPromise {
+    promise: CallbackPromise
 }
+type Callback = CallbackFn & CallbackWithPromise & CallbackPromise
+function getCallback(): Callback {
+    const callbackFn: CallbackFn = () => { }
+    const callbackWithPromise: CallbackWithPromise = {
+        promise: new Promise(() => { })
+    }
+    const callback: Callback = Object.assign<CallbackFn, CallbackWithPromise, CallbackPromise>(
+        callbackFn,
+        callbackWithPromise,
+        {
+            [Symbol.toStringTag]: 'Callback',
+            then: <TResult1 = void, TResult2 = never>(onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null) => callbackWithPromise.promise.then<TResult1, TResult2>(onfulfilled, onrejected),
+            catch: <TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null) => callbackWithPromise.promise.catch<TResult>(onrejected),
+            finally: (onfinally?: (() => void) | undefined | null) => callbackWithPromise.promise.finally(onfinally)
+        }
+    )
+    return callback
+}
+
 type BuilderReturns = string | Buffer
-type Builder = BuilderReturns | ((canceler?: Canceler) => void | BuilderReturns | Promise<BuilderReturns> | ReadableStream)
+type Builder = BuilderReturns | ((callback?: Callback) => void | BuilderReturns | Promise<BuilderReturns>) | Readable
 
 class FileOutput {
     outputPath: string
@@ -38,11 +40,10 @@ class FileOutput {
 
     async update(builder: Builder) {
         if (typeof builder === 'function') {
-            const canceler: Canceler = new Canceler(this.emitter)
-            builder(canceler)
-        }
-        else {
-            await writeFile(this.outputPath, builder)
+            const callback: Callback = getCallback()
+            builder(callback)
+        } else {
+            console.log('write away!', builder)
         }
     }
 }
