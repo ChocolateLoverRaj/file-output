@@ -9,8 +9,13 @@ interface CallbackWithPromise {
 interface CallbackCancelled {
     canceled: boolean;
 }
-declare type Callback = CallbackFn & CallbackCancelled & CallbackWithPromise & CallbackPromise;
-declare type BuilderReturns = string | Buffer;
+interface CallbackStream {
+    write(str: string): Promise<void>;
+    end(): Promise<void>;
+}
+declare type CallbackObj = CallbackCancelled & CallbackWithPromise & CallbackPromise & CallbackStream;
+declare type Callback = CallbackFn & CallbackObj;
+declare type BuilderReturns = string | Uint8Array;
 declare type Builder = BuilderReturns | ((callback?: Callback) => void | BuilderReturns | Promise<BuilderReturns>) | Readable;
 declare class FileOutput {
     outputPath: string;
