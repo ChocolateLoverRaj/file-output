@@ -1,7 +1,13 @@
 import { EventEmitter } from 'events'
-import Readable from 'stream'
+import { PassThrough, Readable } from 'stream'
 
-type CallbackFn = () => void
+type BuilderReturns = string | Uint8Array
+interface BuilderReadable {
+    pipe(destination: PassThrough): unknown
+}
+type Builder = BuilderReturns | ((callback: Callback) => void | BuilderReturns | Promise<BuilderReturns> | BuilderReadable) | BuilderReadable
+
+type CallbackFn = (output: BuilderReturns) => void
 type CallbackPromise = Promise<void>
 interface CallbackWithPromise {
     promise: CallbackPromise
@@ -44,9 +50,6 @@ function getCallback(): Callback {
     return callback
 }
 
-type BuilderReturns = string | Uint8Array
-type Builder = BuilderReturns | ((callback?: Callback) => void | BuilderReturns | Promise<BuilderReturns>) | Readable
-
 class FileOutput {
     outputPath: string
     emitter: EventEmitter
@@ -57,11 +60,16 @@ class FileOutput {
     }
 
     async update(builder: Builder) {
+        const write = (output: BuilderReturns) => {
+            console.log('write away!', output)
+        }
         if (typeof builder === 'function') {
             const callback: Callback = getCallback()
             builder(callback)
+        } else if (builder) {
+
         } else {
-            console.log('write away!', builder)
+            write(builder)
         }
     }
 }
