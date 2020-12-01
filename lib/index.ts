@@ -64,7 +64,14 @@ class FileOutput {
             console.log('write away!', output)
         }
         const stream = (output: BuilderReadable) => {
-            console.log('Streams not supported yet')
+            const passThrough = new PassThrough()
+                .on('data', data => {
+                    console.log('Stream write', data)
+                })
+                .once('end', () => {
+                    console.log('Stream end')
+                })
+            output.pipe(passThrough)
         }
         if (typeof builder === 'function') {
             const callback: Callback = getCallback()
