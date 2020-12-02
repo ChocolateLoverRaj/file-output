@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events'
 import { PassThrough } from 'stream'
+import { promises as fs } from 'fs'
 
 type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
@@ -52,11 +52,9 @@ function getCallback(): Callback {
 
 class FileOutput {
     outputPath: string
-    emitter: EventEmitter
 
     constructor(outputPath: string) {
         this.outputPath = outputPath
-        this.emitter = new EventEmitter()
     }
 
     async update(builder: Builder) {
