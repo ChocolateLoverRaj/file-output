@@ -5,7 +5,7 @@ type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
     pipe(destination: PassThrough): unknown
 }
-type Builder = BuilderReturns | ((callback: Callback) => void | BuilderReturns | Promise<BuilderReturns> | BuilderReadable) | BuilderReadable
+export type Builder = BuilderReturns | ((callback: Callback) => void | BuilderReturns | Promise<BuilderReturns> | BuilderReadable) | BuilderReadable
 
 type CallbackFn = (output: BuilderReturns) => void
 type CallbackPromise = Promise<void>
@@ -58,8 +58,8 @@ class FileOutput {
     }
 
     async update(builder: Builder) {
-        const write = (output: BuilderReturns) => {
-            console.log('write away!', output)
+        const write = async (output: BuilderReturns) => {
+            await fs.writeFile(this.outputPath, output)
         }
         const stream = (output: BuilderReadable) => {
             const passThrough = new PassThrough()
@@ -75,14 +75,14 @@ class FileOutput {
             const callback: Callback = getCallback()
             const output = builder(callback)
             if (typeof output === 'string' || output instanceof Uint8Array) {
-                write(output)
+                await write(output)
             } else if (output && 'pipe' in output) {
                 stream(output)
             } else if (output) {
-                write(await output)
+                await write(await output)
             }
         } else if (typeof builder === 'string' || builder instanceof Uint8Array) {
-            write(builder)
+            await write(builder)
         } else {
             stream(builder)
         }
