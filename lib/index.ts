@@ -1,5 +1,5 @@
 import { PassThrough } from 'stream'
-import { promises as fs } from 'fs'
+import { createWriteStream, promises as fs } from 'fs'
 
 type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
@@ -7,7 +7,7 @@ interface BuilderReadable {
 }
 export type Builder = BuilderReturns | ((callback: Callback) => void | BuilderReturns | Promise<BuilderReturns> | BuilderReadable) | BuilderReadable
 
-type CallbackFn = (output: BuilderReturns) => void
+type CallbackFn = (err: unknown, output: BuilderReturns) => void
 type CallbackPromise = Promise<void>
 interface CallbackWithPromise {
     promise: CallbackPromise
@@ -22,8 +22,7 @@ interface CallbackStream {
 
 type CallbackObj = CallbackCancelled & CallbackWithPromise & CallbackPromise & CallbackStream
 type Callback = CallbackFn & CallbackObj
-function getCallback(): Callback {
-    const callbackFn: CallbackFn = () => { }
+function getCallback(callbackFn: CallbackFn): Callback {
     const callbackCancelled: CallbackCancelled = {
         canceled: false
     }
@@ -62,17 +61,28 @@ class FileOutput {
             await fs.writeFile(this.outputPath, output)
         }
         const stream = (output: BuilderReadable) => {
+            const writeStream = createWriteStream(this.outputPath)
             const passThrough = new PassThrough()
                 .on('data', data => {
-                    console.log('Stream write', data)
+                    writeStream.write(data)
                 })
                 .once('end', () => {
-                    console.log('Stream end')
+                    writeStream.end()
                 })
             output.pipe(passThrough)
         }
         if (typeof builder === 'function') {
-            const callback: Callback = getCallback()
+            let callbackFn: CallbackFn | undefined
+            const callbackPromise = new Promise<BuilderReturns>((resolve, reject) => {
+                callbackFn = (err, output) => {
+                    if (err) {
+                        reject(err)
+                    } else {
+                        resolve(output)
+                    }
+                }
+            })
+            const callback: Callback = getCallback(callbackFn as CallbackFn)
             const output = builder(callback)
             if (typeof output === 'string' || output instanceof Uint8Array) {
                 await write(output)
@@ -80,7 +90,10 @@ class FileOutput {
                 stream(output)
             } else if (output) {
                 await write(await output)
+            } else {
+                await write(await callbackPromise)
             }
+
         } else if (typeof builder === 'string' || builder instanceof Uint8Array) {
             await write(builder)
         } else {

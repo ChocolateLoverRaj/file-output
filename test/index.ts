@@ -44,6 +44,32 @@ describe('update', () => {
             await testUpdate(() => buff, 'hi')
         })
 
+        it('stream', async () => {
+            await testUpdate(Readable.from('hi'), 'hi')
+        })
+
+        /*it('pipe', async () => {
+            await testUpdate(callback => {
+                Readable.from('hi').pipe(callback as unknown as NodeJS.WritableStream)
+            }, 'hi')
+        })*/
+
+        describe('callback', () => {
+            it('string', async () => {
+                await testUpdate(callback => {
+                    callback(false, 'hi')
+                }, 'hi')
+            })
+
+            it('Uint8Array', async () => {
+                await testUpdate(callback => {
+                    const buff = Buffer.allocUnsafe(2)
+                    buff.write('hi')
+                    callback(false, buff)
+                }, 'hi')
+            })
+        })
+
         describe('promise', () => {
             it('string', async () => {
                 await testUpdate(async () => 'hi', 'hi')
