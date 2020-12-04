@@ -1,13 +1,14 @@
 import { PassThrough } from 'stream'
-import { createWriteStream, promises as fs } from 'fs'
+import { createWriteStream, promises as fs, WriteStream } from 'fs'
+import { once } from 'events'
 
 type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
-    pipe(destination: PassThrough): unknown
+    pipe(destination: WriteStream): unknown
 }
 export type Builder = BuilderReturns | ((callback: Callback) => void | BuilderReturns | Promise<BuilderReturns> | BuilderReadable) | BuilderReadable
 
-type CallbackFn = (err: unknown, output: BuilderReturns) => void
+type CallbackFn = (err?: unknown, output?: BuilderReturns) => void
 type CallbackPromise = Promise<void>
 interface CallbackWithPromise {
     promise: CallbackPromise
@@ -15,14 +16,74 @@ interface CallbackWithPromise {
 interface CallbackCancelled {
     canceled: boolean
 }
+interface CallbackWithStream {
+    stream: PassThrough
+}
 interface CallbackStream {
-    write(str: string): Promise<void>
-    end(): Promise<void>
+    write(chunk: any, encoding?: BufferEncoding, cb?: (error: Error | null | undefined) => void): boolean
+    write(chunk: any, cb?: (error: Error | null | undefined) => void): boolean
+    end(cb?: () => void): void
+    end(chunk: any, cb?: () => void): void
+    emit(event: "close"): boolean
+    emit(event: "data", chunk: any): boolean
+    emit(event: "end"): boolean
+    emit(event: "error", err: Error): boolean
+    emit(event: "pause"): boolean
+    emit(event: "readable"): boolean
+    emit(event: "resume"): boolean
+    emit(event: string | symbol, ...args: any[]): boolean
+    end(chunk: any, encoding?: BufferEncoding, cb?: () => void): void
+    on(event: "close", listener: () => void): CallbackStream
+    on(event: "data", listener: (chunk: any) => void): CallbackStream
+    on(event: "end", listener: () => void): CallbackStream
+    on(event: "error", listener: (err: Error) => void): CallbackStream
+    on(event: "pause", listener: () => void): CallbackStream
+    on(event: "readable", listener: () => void): CallbackStream
+    on(event: "resume", listener: () => void): CallbackStream
+    on(event: string | symbol, listener: (...args: any[]) => void): CallbackStream
+    once(event: "close", listener: () => void): CallbackStream
+    once(event: "data", listener: (chunk: any) => void): CallbackStream
+    once(event: "end", listener: () => void): CallbackStream
+    once(event: "error", listener: (err: Error) => void): CallbackStream
+    once(event: "pause", listener: () => void): CallbackStream
+    once(event: "readable", listener: () => void): CallbackStream
+    once(event: "resume", listener: () => void): CallbackStream
+    once(event: string | symbol, listener: (...args: any[]) => void): CallbackStream
+    removeListener(event: "close", listener: () => void): CallbackStream
+    removeListener(event: "data", listener: (chunk: any) => void): CallbackStream
+    removeListener(event: "end", listener: () => void): CallbackStream
+    removeListener(event: "error", listener: (err: Error) => void): CallbackStream
+    removeListener(event: "pause", listener: () => void): CallbackStream
+    removeListener(event: "readable", listener: () => void): CallbackStream
+    removeListener(event: "resume", listener: () => void): CallbackStream
+    removeListener(event: string | symbol, listener: (...args: any[]) => void): CallbackStream
 }
 
-type CallbackObj = CallbackCancelled & CallbackWithPromise & CallbackPromise & CallbackStream
+type CallbackObj = CallbackCancelled & CallbackWithPromise & CallbackPromise & CallbackWithStream & CallbackStream
 type Callback = CallbackFn & CallbackObj
-function getCallback(callbackFn: CallbackFn): Callback {
+interface CallbackManager {
+    callbackPromise: Promise<BuilderReturns>
+    streamPromise: Promise<PassThrough>
+    callback: Callback
+}
+function getCallback(): CallbackManager {
+    let cbFnPromiseResolve: (value: BuilderReturns | PromiseLike<BuilderReturns>) => void
+    let cbFnPromiseReject: (reason?: any) => void
+    const cbFnPromise = new Promise<BuilderReturns>((resolve, reject) => {
+        cbFnPromiseResolve = resolve
+        cbFnPromiseReject = reject
+    })
+    let streamPromiseResolve: (value: PassThrough | PromiseLike<PassThrough>) => void
+    const streamPromise = new Promise<PassThrough>(resolve => {
+        streamPromiseResolve = resolve
+    })
+    const callbackFn: CallbackFn = (err, output) => {
+        if (output) {
+            cbFnPromiseResolve(output)
+        } else {
+            cbFnPromiseReject(err)
+        }
+    }
     const callbackCancelled: CallbackCancelled = {
         canceled: false
     }
@@ -35,18 +96,57 @@ function getCallback(callbackFn: CallbackFn): Callback {
         catch: <TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null) => callbackWithPromise.promise.catch<TResult>(onrejected),
         finally: (onfinally?: (() => void) | undefined | null) => callbackWithPromise.promise.finally(onfinally)
     }
+    const callbackWithStream: CallbackWithStream = {
+        stream: new PassThrough()
+    }
     const callbackStream: CallbackStream = {
-        async write() { },
-        async end() { }
+        write(chunk: any, arg2?: BufferEncoding | ((error: Error | null | undefined) => void), cb?: (error: Error | null | undefined) => void) {
+            streamPromiseResolve(callbackWithStream.stream)
+            if (typeof arg2 === 'string') {
+                return callbackWithStream.stream.write(chunk, arg2, cb)
+            } else {
+                return callbackWithStream.stream.write(chunk, arg2)
+            }
+        },
+        end(arg1?: (() => void) | any, arg2?: (() => void) | BufferEncoding, cb?: () => void) {
+            if (typeof arg2 === 'string') {
+                callbackWithStream.stream.end(arg1, arg2, cb)
+            } else {
+                callbackWithStream.stream.end(arg1, arg2)
+            }
+        },
+        emit(event: string | symbol, ...args: any[]) {
+            if (event === 'pipe') {
+                streamPromiseResolve(callbackWithStream.stream)
+            }
+            return callbackWithStream.stream.emit(event, ...args)
+        },
+        on(event: string | symbol, listener: (...args: any[]) => void) {
+            callbackWithStream.stream.on(event, listener)
+            return callbackStream
+        },
+        once(event: string | symbol, listener: (...args: any[]) => void) {
+            callbackWithStream.stream.once(event, listener)
+            return callbackStream
+        },
+        removeListener(event: string | symbol, listener: (...args: any[]) => void) {
+            callbackWithStream.stream.removeListener(event, listener)
+            return callbackStream
+        }
     }
     const callbackObj: CallbackObj = {
         ...callbackCancelled,
         ...callbackWithPromise,
         ...callbackPromise,
+        ...callbackWithStream,
         ...callbackStream
     }
     const callback: Callback = Object.assign<CallbackFn, CallbackObj>(callbackFn, callbackObj)
-    return callback
+    return {
+        callbackPromise: cbFnPromise,
+        streamPromise: streamPromise,
+        callback: callback
+    }
 }
 
 class FileOutput {
@@ -60,29 +160,17 @@ class FileOutput {
         const write = async (output: BuilderReturns) => {
             await fs.writeFile(this.outputPath, output)
         }
-        const stream = (output: BuilderReadable) => {
+        const stream = async (output: BuilderReadable | PassThrough) => {
             const writeStream = createWriteStream(this.outputPath)
-            const passThrough = new PassThrough()
-                .on('data', data => {
-                    writeStream.write(data)
-                })
-                .once('end', () => {
-                    writeStream.end()
-                })
-            output.pipe(passThrough)
+            output.pipe(writeStream)
+            await once(writeStream, 'close')
         }
         if (typeof builder === 'function') {
-            let callbackFn: CallbackFn | undefined
-            const callbackPromise = new Promise<BuilderReturns>((resolve, reject) => {
-                callbackFn = (err, output) => {
-                    if (err) {
-                        reject(err)
-                    } else {
-                        resolve(output)
-                    }
-                }
-            })
-            const callback: Callback = getCallback(callbackFn as CallbackFn)
+            const {
+                callbackPromise,
+                streamPromise,
+                callback
+            } = getCallback()
             const output = builder(callback)
             if (typeof output === 'string' || output instanceof Uint8Array) {
                 await write(output)
@@ -91,9 +179,13 @@ class FileOutput {
             } else if (output) {
                 await write(await output)
             } else {
-                await write(await callbackPromise)
+                const output = await Promise.race<BuilderReturns | PassThrough>([callbackPromise, streamPromise])
+                if (output instanceof PassThrough) {
+                    await stream(output)
+                } else {
+                    await write(output)
+                }
             }
-
         } else if (typeof builder === 'string' || builder instanceof Uint8Array) {
             await write(builder)
         } else {

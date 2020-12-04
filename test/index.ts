@@ -48,11 +48,11 @@ describe('update', () => {
             await testUpdate(Readable.from('hi'), 'hi')
         })
 
-        /*it('pipe', async () => {
+        it('pipe', async () => {
             await testUpdate(callback => {
                 Readable.from('hi').pipe(callback as unknown as NodeJS.WritableStream)
             }, 'hi')
-        })*/
+        })
 
         describe('callback', () => {
             it('string', async () => {
