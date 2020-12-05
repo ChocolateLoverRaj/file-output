@@ -60,10 +60,11 @@ interface CallbackStream {
 }
 
 type CallbackObj = CallbackCancelled & CallbackWithPromise & CallbackPromise & CallbackWithStream & CallbackStream
-type Callback = CallbackFn & CallbackObj
+export type Callback = CallbackFn & CallbackObj
 interface CallbackManager {
     callbackPromise: Promise<BuilderReturns>
-    streamPromise: Promise<PassThrough>
+    streamPromise: Promise<PassThrough>,
+    callbackPromiseResolve: () => Promise<void>
     callback: Callback
 }
 function getCallback(): CallbackManager {
@@ -87,8 +88,14 @@ function getCallback(): CallbackManager {
     const callbackCancelled: CallbackCancelled = {
         canceled: false
     }
+    let callbackPromiseResolve: () => Promise<void> = async () => { }
     const callbackWithPromise: CallbackWithPromise = {
-        promise: new Promise(() => { })
+        promise: new Promise<void>(resolve => {
+            callbackPromiseResolve = async () => {
+                resolve()
+                callback.canceled = true
+            }
+        })
     }
     const callbackPromise: CallbackPromise = {
         [Symbol.toStringTag]: 'Callback',
@@ -145,6 +152,7 @@ function getCallback(): CallbackManager {
     return {
         callbackPromise: cbFnPromise,
         streamPromise: streamPromise,
+        callbackPromiseResolve: callbackPromiseResolve,
         callback: callback
     }
 }
@@ -160,24 +168,27 @@ class FileOutput {
     async update(builder: Builder) {
         const cancelPromise = this.cancel && this.cancel()
 
-        const write = async (output: BuilderReturns) => {
+        const write = async (output: BuilderReturns, callbackPromiseResolve?: () => Promise<void>) => {
             let cancelled = false
             this.cancel = async () => {
                 cancelled = true
+                callbackPromiseResolve && await callbackPromiseResolve()
             }
             await cancelPromise
             if (!cancelled) {
                 const write = fs.writeFile(this.outputPath, output)
                 this.cancel = async () => {
+                    callbackPromiseResolve && await callbackPromiseResolve()
                     await write
                 }
                 await write
             }
         }
-        const stream = async (output: BuilderReadable | PassThrough) => {
+        const stream = async (output: BuilderReadable | PassThrough, callbackPromiseResolve?: () => Promise<void>) => {
             let cancelled = false
             this.cancel = async () => {
                 cancelled = true
+                callbackPromiseResolve && await callbackPromiseResolve()
             }
             await cancelPromise
             if (!cancelled) {
@@ -189,6 +200,7 @@ class FileOutput {
                     this.cancel = async () => {
                         passThrough.unpipe(writeStream)
                         writeStream.close()
+                        callbackPromiseResolve && await callbackPromiseResolve()
                     }
                     writeStream.on('close', resolve)
                     writeStream.on('error', reject)
@@ -199,26 +211,29 @@ class FileOutput {
             const {
                 callbackPromise,
                 streamPromise,
+                callbackPromiseResolve,
                 callback
             } = getCallback()
             const output = builder(callback)
             if (typeof output === 'string' || output instanceof Uint8Array) {
-                await write(output)
+                await write(output, callbackPromiseResolve)
             } else if (output && 'pipe' in output) {
-                await stream(output)
+                await stream(output, callbackPromiseResolve)
             } else if (output) {
                 let canceled
                 this.cancel = async () => {
                     canceled = true
+                    callbackPromiseResolve()
                 }
                 await output
                 if (!canceled) {
-                    await write(await output)
+                    await write(await output, callbackPromiseResolve)
                 }
             } else {
                 const cancelPromise = new Promise<void>(resolve => {
                     this.cancel = async () => {
                         resolve()
+                        callbackPromiseResolve()
                     }
                 })
                 const output = await Promise.race<void | BuilderReturns | PassThrough>([
@@ -227,9 +242,9 @@ class FileOutput {
                     streamPromise
                 ])
                 if (output instanceof PassThrough) {
-                    await stream(output)
+                    await stream(output, callbackPromiseResolve)
                 } else if (output) {
-                    await write(output)
+                    await write(output, callbackPromiseResolve)
                 }
             }
         } else if (typeof builder === 'string' || builder instanceof Uint8Array) {

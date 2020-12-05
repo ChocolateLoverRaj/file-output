@@ -1,8 +1,9 @@
-import FileOutput, { Builder } from '../lib/index'
+import FileOutput, { Builder, Callback } from '../lib/index'
 import mock from 'mock-fs'
 import { existsSync, readFileSync } from 'fs'
 import { strictEqual } from 'assert'
 import { Readable } from 'stream'
+import tick from 'p-immediate'
 
 beforeEach(() => {
     mock()
@@ -85,6 +86,21 @@ describe('update', () => {
 })
 
 describe('cancel', () => {
+    it('callback cancelled', async () => {
+        const fileOutput = new FileOutput('file')
+        let callback: Callback | undefined
+        fileOutput.update(cb => {
+            callback = cb
+        })
+        let callbackResolved: boolean = false
+        callback && callback.then(() => {
+            callbackResolved = true
+        })
+        await (fileOutput.cancel && fileOutput.cancel())
+        strictEqual(callbackResolved, true)
+        strictEqual(callback?.canceled, true)
+    })
+
     it('write', async () => {
         const fileOutput = new FileOutput('file')
         fileOutput.update('hi')
