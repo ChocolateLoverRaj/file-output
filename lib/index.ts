@@ -1,6 +1,5 @@
 import { PassThrough } from 'stream'
-import { createWriteStream, promises as fs, readFileSync, WriteStream } from 'fs'
-import { once } from 'events'
+import { createWriteStream, promises as fs } from 'fs'
 
 type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
@@ -159,10 +158,12 @@ function getCallback(): CallbackManager {
 
 class FileOutput {
     outputPath: string
+    fileDoesNotExist: boolean
     cancel?: () => Promise<void>
 
-    constructor(outputPath: string) {
+    constructor(outputPath: string, fileDoesNotExist: boolean = false) {
         this.outputPath = outputPath
+        this.fileDoesNotExist = fileDoesNotExist
     }
 
     async update(builder: Builder) {
@@ -177,6 +178,7 @@ class FileOutput {
             await cancelPromise
             if (!cancelled) {
                 const write = fs.writeFile(this.outputPath, output)
+                this.fileDoesNotExist = false
                 this.cancel = async () => {
                     callbackPromiseResolve && await callbackPromiseResolve()
                     await write
@@ -196,6 +198,7 @@ class FileOutput {
                 output.pipe(passThrough)
                 await new Promise((resolve, reject) => {
                     const writeStream = createWriteStream(this.outputPath)
+                    this.fileDoesNotExist = false
                     passThrough.pipe(writeStream)
                     this.cancel = async () => {
                         passThrough.unpipe(writeStream)
@@ -251,6 +254,19 @@ class FileOutput {
             await write(builder)
         } else {
             await stream(builder)
+        }
+    }
+
+    async destroy(unlinkFile: boolean = true) {
+        this.cancel && await this.cancel()
+        if (!this.fileDoesNotExist && unlinkFile) {
+            try {
+                await fs.unlink(this.outputPath)
+            } catch (e) {
+                if (e.code !== 'ENOENT') {
+                    throw e
+                }
+            }
         }
     }
 }

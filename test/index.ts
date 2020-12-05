@@ -1,6 +1,6 @@
 import FileOutput, { Builder, Callback } from '../lib/index'
 import mock from 'mock-fs'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { strictEqual } from 'assert'
 import { Readable } from 'stream'
 import tick from 'p-immediate'
@@ -179,6 +179,50 @@ describe('overwrite', () => {
             Promise.resolve().then(() => {
                 callback('hi')
             })
+        })
+    })
+})
+
+describe('destroy', () => {
+    it('cancels', async () => {
+        const fileOutput = new FileOutput('file')
+        let canceled: boolean = false
+        fileOutput.update(callback => {
+            callback.then(() => {
+                canceled = true
+            })
+        })
+        await fileOutput.destroy()
+        strictEqual(canceled, true)
+    })
+
+    it('unlinks file', async () => {
+        const fileOutput = new FileOutput('file')
+        await fileOutput.update('hi')
+        await fileOutput.destroy()
+        strictEqual(existsSync('file'), false)
+    })
+
+    it('no unlink', async () => {
+        const fileOutput = new FileOutput('file')
+        await fileOutput.update('hi')
+        await fileOutput.destroy(false)
+        strictEqual(existsSync('file'), true)
+    })
+
+    describe('detects no unlink', () => {
+        it('no unlink', async () => {
+            const fileOutput = new FileOutput('file', true)
+            writeFileSync('file', 'hi')
+            await fileOutput.destroy()
+            strictEqual(existsSync('file'), true)
+        })
+
+        it('unlink', async () => {
+            const fileOutput = new FileOutput('file', true)
+            await fileOutput.update('hi')
+            await fileOutput.destroy()
+            strictEqual(existsSync('file'), false)
         })
     })
 })
