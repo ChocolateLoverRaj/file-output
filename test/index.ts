@@ -131,5 +131,38 @@ describe('cancel', () => {
 })
 
 describe('overwrite', () => {
+    async function testUpdate(v: Builder): Promise<void> {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update(v)
+        await fileOutput.update('hello')
+        strictEqual(readFileSync('file', 'utf8'), 'hello')
+    }
 
+    it('write', async () => {
+        await testUpdate('hi')
+    })
+
+    it('promise', async () => {
+        await testUpdate(async () => 'hi')
+    })
+
+    it('stream', async () => {
+        await testUpdate(Readable.from('hi'))
+    })
+
+    it('pipe', async () => {
+        await testUpdate(callback => {
+            Promise.resolve().then(() => {
+                Readable.from('hi').pipe(callback as unknown as NodeJS.WritableStream)
+            })
+        })
+    })
+
+    it('callback', async () => {
+        await testUpdate(callback => {
+            Promise.resolve().then(() => {
+                callback('hi')
+            })
+        })
+    })
 })
