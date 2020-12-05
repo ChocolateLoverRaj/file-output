@@ -104,7 +104,7 @@ describe('cancel', () => {
         const fileOutput = new FileOutput('file')
         fileOutput.update(Readable.from('hi'))
         await (fileOutput.cancel && fileOutput.cancel())
-        strictEqual(readFileSync('file', 'utf8'), '')
+        strictEqual(existsSync('file'), false)
     })
 
     it('pipe', async () => {

@@ -1,10 +1,10 @@
 import { PassThrough } from 'stream'
-import { createWriteStream, promises as fs, WriteStream } from 'fs'
+import { createWriteStream, promises as fs, readFileSync, WriteStream } from 'fs'
 import { once } from 'events'
 
 type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
-    pipe(destination: WriteStream): unknown
+    pipe(destination: PassThrough): unknown
 }
 export type Builder = BuilderReturns | ((callback: Callback) => void | BuilderReturns | Promise<BuilderReturns> | BuilderReadable) | BuilderReadable
 
@@ -175,19 +175,25 @@ class FileOutput {
             }
         }
         const stream = async (output: BuilderReadable | PassThrough) => {
-            //await cancelPromise
-            const writeStream = createWriteStream(this.outputPath)
-            const passThrough = new PassThrough()
-            passThrough.pipe(writeStream)
-            output.pipe(writeStream)
-            await new Promise((resolve, reject) => {
-                this.cancel = async () => {
-                    passThrough.unpipe(writeStream)
-                    writeStream.close()
-                }
-                writeStream.on('close', resolve)
-                writeStream.on('error', reject)
-            })
+            let cancelled = false
+            this.cancel = async () => {
+                cancelled = true
+            }
+            await cancelPromise
+            if (!cancelled) {
+                const passThrough = new PassThrough()
+                output.pipe(passThrough)
+                await new Promise((resolve, reject) => {
+                    const writeStream = createWriteStream(this.outputPath)
+                    passThrough.pipe(writeStream)
+                    this.cancel = async () => {
+                        passThrough.unpipe(writeStream)
+                        writeStream.close()
+                    }
+                    writeStream.on('close', resolve)
+                    writeStream.on('error', reject)
+                })
+            }
         }
         if (typeof builder === 'function') {
             const {
@@ -199,7 +205,7 @@ class FileOutput {
             if (typeof output === 'string' || output instanceof Uint8Array) {
                 await write(output)
             } else if (output && 'pipe' in output) {
-                stream(output)
+                await stream(output)
             } else if (output) {
                 let canceled
                 this.cancel = async () => {
@@ -229,7 +235,7 @@ class FileOutput {
         } else if (typeof builder === 'string' || builder instanceof Uint8Array) {
             await write(builder)
         } else {
-            stream(builder)
+            await stream(builder)
         }
     }
 }
