@@ -1,6 +1,6 @@
 import FileOutput, { Builder } from '../lib/index'
 import mock from 'mock-fs'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { strictEqual } from 'assert'
 import { Readable } from 'stream'
 
@@ -81,5 +81,50 @@ describe('update', () => {
                 await testUpdate(async () => buff, 'hi')
             })
         })
+    })
+})
+
+describe('cancel', () => {
+    it('write', async () => {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update('hi');
+        await (fileOutput.cancel && fileOutput.cancel())
+        strictEqual(readFileSync('file', 'utf8'), 'hi')
+    })
+
+    it('write stream', async () => {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update(async () => 'hi')
+        await (fileOutput.cancel && fileOutput.cancel())
+        strictEqual(existsSync('file'), false)
+    })
+
+    it('stream', async () => {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update(Readable.from('hi'))
+        await (fileOutput.cancel && fileOutput.cancel())
+        strictEqual(readFileSync('file', 'utf8'), '')
+    })
+
+    it('pipe', async () => {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update(callback => {
+            Promise.resolve().then(() => {
+                Readable.from('hi').pipe(callback as unknown as NodeJS.WritableStream)
+            })
+        })
+        await (fileOutput.cancel && fileOutput.cancel())
+        strictEqual(existsSync('file'), false)
+    })
+
+    it('callback', async () => {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update(callback => {
+            Promise.resolve().then(() => {
+                callback('hi')
+            })
+        })
+        await (fileOutput.cancel && fileOutput.cancel())
+        strictEqual(existsSync('file'), false)
     })
 })

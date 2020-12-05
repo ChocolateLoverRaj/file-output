@@ -151,6 +151,7 @@ function getCallback(): CallbackManager {
 
 class FileOutput {
     outputPath: string
+    cancel?: () => Promise<void>
 
     constructor(outputPath: string) {
         this.outputPath = outputPath
@@ -158,12 +159,25 @@ class FileOutput {
 
     async update(builder: Builder) {
         const write = async (output: BuilderReturns) => {
-            await fs.writeFile(this.outputPath, output)
+            const write = fs.writeFile(this.outputPath, output)
+            this.cancel = async () => {
+                await write
+            }
+            await write
         }
         const stream = async (output: BuilderReadable | PassThrough) => {
             const writeStream = createWriteStream(this.outputPath)
+            const passThrough = new PassThrough()
+            passThrough.pipe(writeStream)
             output.pipe(writeStream)
-            await once(writeStream, 'close')
+            await new Promise((resolve, reject) => {
+                this.cancel = async () => {
+                    passThrough.unpipe(writeStream)
+                    writeStream.close()
+                }
+                writeStream.on('close', resolve)
+                writeStream.on('error', reject)
+            })
         }
         if (typeof builder === 'function') {
             const {
@@ -177,12 +191,28 @@ class FileOutput {
             } else if (output && 'pipe' in output) {
                 stream(output)
             } else if (output) {
-                await write(await output)
+                let canceled
+                this.cancel = async () => {
+                    canceled = true
+                }
+                await output
+                if (!canceled) {
+                    await write(await output)
+                }
             } else {
-                const output = await Promise.race<BuilderReturns | PassThrough>([callbackPromise, streamPromise])
+                const cancelPromise = new Promise<void>(resolve => {
+                    this.cancel = async () => {
+                        resolve()
+                    }
+                })
+                const output = await Promise.race<void | BuilderReturns | PassThrough>([
+                    cancelPromise,
+                    callbackPromise,
+                    streamPromise
+                ])
                 if (output instanceof PassThrough) {
                     await stream(output)
-                } else {
+                } else if (output) {
                     await write(output)
                 }
             }
