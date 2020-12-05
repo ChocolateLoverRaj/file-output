@@ -87,12 +87,13 @@ describe('update', () => {
 describe('cancel', () => {
     it('write', async () => {
         const fileOutput = new FileOutput('file')
-        fileOutput.update('hi');
+        fileOutput.update('hi')
+        await Promise.resolve()
         await (fileOutput.cancel && fileOutput.cancel())
         strictEqual(readFileSync('file', 'utf8'), 'hi')
     })
 
-    it('write stream', async () => {
+    it('promise', async () => {
         const fileOutput = new FileOutput('file')
         fileOutput.update(async () => 'hi')
         await (fileOutput.cancel && fileOutput.cancel())
@@ -127,4 +128,8 @@ describe('cancel', () => {
         await (fileOutput.cancel && fileOutput.cancel())
         strictEqual(existsSync('file'), false)
     })
+})
+
+describe('overwrite', () => {
+
 })

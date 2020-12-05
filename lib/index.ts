@@ -158,14 +158,24 @@ class FileOutput {
     }
 
     async update(builder: Builder) {
+        const cancelPromise = this.cancel && this.cancel()
+
         const write = async (output: BuilderReturns) => {
-            const write = fs.writeFile(this.outputPath, output)
+            let cancelled = false
             this.cancel = async () => {
+                cancelled = true
+            }
+            await cancelPromise
+            if (!cancelled) {
+                const write = fs.writeFile(this.outputPath, output)
+                this.cancel = async () => {
+                    await write
+                }
                 await write
             }
-            await write
         }
         const stream = async (output: BuilderReadable | PassThrough) => {
+            //await cancelPromise
             const writeStream = createWriteStream(this.outputPath)
             const passThrough = new PassThrough()
             passThrough.pipe(writeStream)
