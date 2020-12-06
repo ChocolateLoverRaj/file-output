@@ -1,7 +1,7 @@
 import FileOutput, { Builder, Callback } from '../lib/index'
 import mock from 'mock-fs'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
-import { strictEqual } from 'assert'
+import { strictEqual, rejects } from 'assert'
 import { Readable } from 'stream'
 import tick from 'p-immediate'
 
@@ -257,5 +257,15 @@ describe('read', () => {
         const update = fileOutput.update('hello')
         strictEqual(await read, 'hello')
         await update
+    })
+
+    it('destroy', async () => {
+        const fileOutput = new FileOutput('file')
+        const update = fileOutput.update('hi')
+        const read = fileOutput.read()
+        const destroy = fileOutput.destroy()
+        await rejects(read, new Error('FileOutput was destroyed.'))
+        await update
+        await destroy
     })
 })

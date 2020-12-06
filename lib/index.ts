@@ -166,8 +166,6 @@ interface Options {
     readExisting?: boolean
 }
 class FileOutput extends EventEmitter {
-    static DESTROYED = Symbol('DESTROYED')
-
     outputPath: string
     fileDoesNotExist: boolean
     fileGood: boolean
@@ -318,19 +316,20 @@ class FileOutput extends EventEmitter {
             const res = await Promise.race([
                 read(),
                 once(this, 'write'),
-                once(this, 'destroy')
+                once(this, 'destroy').then(() => Symbol('DESTROYED'))
             ])
             if (res instanceof Uint8Array) {
                 return res.toString()
             } else if (typeof res === 'string') {
                 return res
-            } else if (res[0] === FileOutput.DESTROYED) {
+            } else if (typeof res === 'symbol') {
                 throw new Error('FileOutput was destroyed.')
             }
         }
     }
 
     async destroy(unlinkFile: boolean = true) {
+        this.emit('destroy')
         this.cancel && await this.cancel()
         if (!this.fileDoesNotExist && unlinkFile) {
             try {
