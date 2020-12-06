@@ -268,4 +268,36 @@ describe('read', () => {
         await update
         await destroy
     })
+
+    it('future', async () => {
+        const fileOutput = new FileOutput('file', { readExisting: false })
+        const read = fileOutput.read()
+        await tick()
+        await fileOutput.update('hi')
+        strictEqual(await read, 'hi')
+    })
+})
+
+describe('file good', () => {
+    describe('constructor', () => {
+        it('false', () => {
+            strictEqual(new FileOutput('file', { readExisting: false }).fileGood, false)
+        })
+
+        it('implicit false', () => {
+            strictEqual(new FileOutput('file', { fileDoesNotExist: true }).fileGood, false)
+        })
+    })
+
+    it('write promise', async () => {
+        const fileOutput = new FileOutput('file', { readExisting: false })
+        await fileOutput.update('hi')
+        strictEqual(fileOutput.fileGood, true)
+    })
+
+    it('write stream', async () => {
+        const fileOutput = new FileOutput('file', { readExisting: false })
+        await fileOutput.update(Readable.from('hi'))
+        strictEqual(fileOutput.fileGood, true)
+    })
 })

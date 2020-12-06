@@ -209,6 +209,7 @@ class FileOutput extends EventEmitter {
                     await write
                 }
                 await write
+                this.fileGood = true
             }
         }
         const stream = async (output: BuilderReadable | PassThrough, callbackPromiseResolve?: () => Promise<void>) => {
@@ -247,6 +248,7 @@ class FileOutput extends EventEmitter {
                     writeStream.on('close', resolve)
                     writeStream.on('error', reject)
                 })
+                this.fileGood = true
             }
         }
         if (typeof builder === 'function') {
@@ -297,8 +299,8 @@ class FileOutput extends EventEmitter {
     }
 
     async read() {
-        if (this.fileDoesNotExist) {
-
+        if (!this.fileGood) {
+            await once(this, 'write')
         }
         const read = async () => {
             if (this.writing) {
