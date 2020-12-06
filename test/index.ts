@@ -249,4 +249,13 @@ describe('read', () => {
         await fileOutput.update('hi')
         strictEqual(await fileOutput.read(), 'hi')
     })
+
+    it('overwrite', async () => {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update(async () => 'hi')
+        const read = fileOutput.read()
+        const update = fileOutput.update('hello')
+        strictEqual(await read, 'hello')
+        await update
+    })
 })
