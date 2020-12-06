@@ -212,17 +212,41 @@ describe('destroy', () => {
 
     describe('detects no unlink', () => {
         it('no unlink', async () => {
-            const fileOutput = new FileOutput('file', true)
+            const fileOutput = new FileOutput('file', { fileDoesNotExist: true })
             writeFileSync('file', 'hi')
             await fileOutput.destroy()
             strictEqual(existsSync('file'), true)
         })
 
         it('unlink', async () => {
-            const fileOutput = new FileOutput('file', true)
+            const fileOutput = new FileOutput('file', { fileDoesNotExist: true })
             await fileOutput.update('hi')
             await fileOutput.destroy()
             strictEqual(existsSync('file'), false)
         })
+    })
+})
+
+describe('read', () => {
+    describe('writing', () => {
+        it('promise', async () => {
+            const fileOutput = new FileOutput('file')
+            const update = fileOutput.update(async () => 'hi')
+            strictEqual(await fileOutput.read(), 'hi')
+            await update
+        })
+
+        it('stream', async () => {
+            const fileOutput = new FileOutput('file')
+            const update = fileOutput.update(Readable.from('hi'))
+            strictEqual(await fileOutput.read(), 'hi')
+            await update
+        })
+    })
+
+    it('readFile', async () => {
+        const fileOutput = new FileOutput('file')
+        await fileOutput.update('hi')
+        strictEqual(await fileOutput.read(), 'hi')
     })
 })

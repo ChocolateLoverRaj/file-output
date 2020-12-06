@@ -1,5 +1,6 @@
 import { PassThrough } from 'stream'
 import { createWriteStream, promises as fs } from 'fs'
+import { EventEmitter, once } from 'events'
 
 type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
@@ -156,14 +157,35 @@ function getCallback(): CallbackManager {
     }
 }
 
-class FileOutput {
+enum WritingTypes {
+    PROMISE = 0,
+    STREAM = 1
+}
+interface Options {
+    fileDoesNotExist?: boolean
+    readExisting?: boolean
+}
+class FileOutput extends EventEmitter {
+    static DESTROYED = Symbol('DESTROYED')
+
     outputPath: string
     fileDoesNotExist: boolean
+    fileGood: boolean
     cancel?: () => Promise<void>
+    writing?: {
+        type: WritingTypes.PROMISE
+        value: BuilderReturns
+    } | {
+        type: WritingTypes.STREAM
+        cache: Array<string> | Array<Uint8Array>
+        stream: PassThrough
+    }
 
-    constructor(outputPath: string, fileDoesNotExist: boolean = false) {
+    constructor(outputPath: string, options?: Options) {
+        super()
         this.outputPath = outputPath
-        this.fileDoesNotExist = fileDoesNotExist
+        this.fileDoesNotExist = options?.fileDoesNotExist ?? false
+        this.fileGood = !this.fileDoesNotExist && (options?.readExisting ?? true)
     }
 
     async update(builder: Builder) {
@@ -179,6 +201,11 @@ class FileOutput {
             if (!cancelled) {
                 const write = fs.writeFile(this.outputPath, output)
                 this.fileDoesNotExist = false
+                this.writing = {
+                    type: WritingTypes.PROMISE,
+                    value: output
+                }
+                this.emit('write')
                 this.cancel = async () => {
                     callbackPromiseResolve && await callbackPromiseResolve()
                     await write
@@ -192,13 +219,27 @@ class FileOutput {
                 cancelled = true
                 callbackPromiseResolve && await callbackPromiseResolve()
             }
+            const passThrough = new PassThrough()
+            output.pipe(passThrough)
+            this.writing = {
+                type: WritingTypes.STREAM,
+                cache: [],
+                stream: passThrough
+            }
+            this.emit('write')
+            passThrough.on('data', data => {
+                this.writing?.type === WritingTypes.STREAM && this.writing.cache.push(data)
+            })
             await cancelPromise
             if (!cancelled) {
-                const passThrough = new PassThrough()
-                output.pipe(passThrough)
                 await new Promise((resolve, reject) => {
                     const writeStream = createWriteStream(this.outputPath)
                     this.fileDoesNotExist = false
+                    if (this.writing?.type === WritingTypes.STREAM) {
+                        for (const chunk of this.writing.cache) {
+                            writeStream.write(chunk)
+                        }
+                    }
                     passThrough.pipe(writeStream)
                     this.cancel = async () => {
                         passThrough.unpipe(writeStream)
@@ -254,6 +295,38 @@ class FileOutput {
             await write(builder)
         } else {
             await stream(builder)
+        }
+    }
+
+    async read() {
+        if (this.fileDoesNotExist) {
+
+        }
+        const read = async () => {
+            if (this.writing) {
+                if (this.writing.type === WritingTypes.PROMISE) {
+                    return this.writing.value
+                } else {
+                    await once(this.writing.stream, 'end')
+                    return ([] as Array<BuilderReturns>).concat(...this.writing.cache).join('')
+                }
+            } else {
+                return await fs.readFile(this.outputPath, 'utf8')
+            }
+        }
+        while (true) {
+            const res = await Promise.race([
+                read(),
+                once(this, 'write'),
+                once(this, 'destroy')
+            ])
+            if (res instanceof Uint8Array) {
+                return res.toString()
+            } else if (typeof res === 'string') {
+                return res
+            } else if (res[0] === FileOutput.DESTROYED) {
+                throw new Error('FileOutput was destroyed.')
+            }
         }
     }
 
