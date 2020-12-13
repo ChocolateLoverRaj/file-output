@@ -1,5 +1,5 @@
 import { PassThrough } from 'stream'
-import { createWriteStream, promises as fs } from 'fs'
+import { createReadStream, createWriteStream, promises as fs } from 'fs'
 import { EventEmitter, once } from 'events'
 
 // This can be directly written to a file
@@ -446,6 +446,60 @@ class FileOutput extends EventEmitter {
                 throw new Error('FileOutput was destroyed.')
             }
         }
+    }
+
+    /**
+     * Get a readable stream of file contents.
+     */
+    readStream() {
+        // If the file is written to, read from it
+        if (this.fileGood && !this.writing) {
+            return createReadStream(this.outputPath, 'utf8')
+        }
+        // Return the pass through, but asynchronously listen for events
+        const passThrough = new PassThrough();
+        (async () => {
+            // Wait for the file to be written, if it hasn't already
+            if (!this.writing && typeof await Promise.race([
+                once(this, 'write'),
+                once(this, 'destroy').then(() => Symbol('DESTROYED'))
+            ]) === 'symbol') {
+                passThrough.destroy(new Error('FileOutput was destroyed.'))
+                return
+            }
+            if (this.writing?.type === WritingTypes.STREAM) {
+                // Write previous data
+                for (const cache of this.writing.cache) {
+                    passThrough.write(cache)
+                }
+                // Write new data as it flows
+                this.writing.stream
+                    .on('data', chunk => {
+                        passThrough.write(chunk)
+                    })
+                    .on('end', () => {
+                        passThrough.end()
+                    })
+                // Destroy stream on write and destroy
+                this
+                    .on('write', () => {
+                        if (!passThrough.writableEnded) {
+                            passThrough.destroy(new Error('Write has been cancelled and it is outdated.'))
+                        }
+                    })
+                    .on('destroy', () => {
+                        if (!passThrough.writableEnded) {
+                            passThrough.destroy(new Error('FileOutput was destroyed.'))
+                        }
+                    })
+            }
+            // If this is a promise
+            if (this.writing?.type === WritingTypes.PROMISE) {
+                // Write data
+                passThrough.end(this.writing.value)
+            }
+        })()
+        return passThrough
     }
 
     /**

@@ -4,6 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { strictEqual, rejects } from 'assert'
 import { Readable } from 'stream'
 import tick from 'p-immediate'
+import toString from 'stream-to-string'
 
 beforeEach(() => {
     mock()
@@ -275,6 +276,55 @@ describe('read', () => {
         await tick()
         await fileOutput.update('hi')
         strictEqual(await read, 'hi')
+    })
+})
+
+describe('readStream', () => {
+    describe('writing', () => {
+        it('promise', async () => {
+            const fileOutput = new FileOutput('file', { readExisting: false })
+            const update = fileOutput.update(async () => 'hi')
+            strictEqual(await toString(fileOutput.readStream()), 'hi')
+            await update
+        })
+
+        it('stream', async () => {
+            const fileOutput = new FileOutput('file')
+            const update = fileOutput.update(Readable.from('hi'))
+            strictEqual(await toString(fileOutput.readStream()), 'hi')
+            await update
+        })
+    })
+
+    it('createReadStream', async () => {
+        const fileOutput = new FileOutput('file')
+        await fileOutput.update('hi')
+        strictEqual(await toString(fileOutput.readStream()), 'hi')
+    })
+
+    it('overwrite', async () => {
+        const fileOutput = new FileOutput('file')
+        fileOutput.update(Readable.from(['hi', ' ', 'hello']))
+        const readStream = fileOutput.readStream()
+        const update = fileOutput.update('hello')
+        await rejects(toString(readStream), new Error('Write has been cancelled and it is outdated.'))
+        await update
+    })
+
+    it('destroy', async () => {
+        const fileOutput = new FileOutput('file', { readExisting: false })
+        const readStream = fileOutput.readStream()
+        const destroy = fileOutput.destroy()
+        await rejects(toString(readStream), new Error('FileOutput was destroyed.'))
+        await destroy
+    })
+
+    it('future', async () => {
+        const fileOutput = new FileOutput('file', { readExisting: false })
+        const read = fileOutput.readStream()
+        await tick()
+        await fileOutput.update('hi')
+        strictEqual(await toString(fileOutput.readStream()), 'hi')
     })
 })
 
