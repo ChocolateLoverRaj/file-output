@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
         "onfinally"
-    ]
+    ],
+    "typescript.format.insertSpaceBeforeFunctionParenthesis": true,
+    "typescript.format.insertSpaceAfterConstructor": true
 }
