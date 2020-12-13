@@ -4,14 +4,19 @@
   "description": "Manage reading, writing, and updating files.",
   "main": "lib/index.js",
   "directories": {
-    "lib": "lib"
+    "lib": "lib",
+    "doc": "doc"
   },
   "dependencies": {},
   "devDependencies": {
+    "@types/fs-extra": "^9.0.5",
+    "@types/jsdoc-to-markdown": "^6.0.0",
     "@types/mocha": "^8.0.4",
     "@types/mock-fs": "^4.13.0",
     "@types/node": "^14.14.10",
-    "dirname-filename-esm": "^1.0.2",
+    "fs-extra": "^9.0.1",
+    "jsdoc": "^3.6.6",
+    "jsdoc-to-markdown": "^6.0.1",
     "mocha": "^8.2.1",
     "mock-fs": "^4.13.0",
     "p-immediate": "^3.1.0",
@@ -21,7 +26,9 @@
   },
   "scripts": {
     "lint": "ts-standard",
-    "build": "tsc",
+    "build:ts": "tsc",
+    "build:doc": "npm run build:ts && node dev/build",
+    "build": "npm run build:ts & npm run build:doc",
     "prepublishOnly": "npm run build",
     "test": "mocha"
   },

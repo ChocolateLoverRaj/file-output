@@ -1,3 +1,7 @@
+/**
+ * @module file-output
+ */
+
 import { PassThrough } from 'stream'
 import { createReadStream, createWriteStream, promises as fs, ReadStream } from 'fs'
 import { EventEmitter, once } from 'events'
@@ -159,15 +163,13 @@ enum WritingTypes {
 }
 // Options for constructor
 interface Options {
-  /**
-     * Set to true for better performance when calling the destroy method if you know for sure the file doesn't exist
-     * @default false */
   fileDoesNotExist?: boolean
-  /**
-     * Whether or not it's okay to read previous content of file.
-     * @default true */
   readExisting?: boolean
 }
+
+/**
+ * FileOutput class
+ */
 class FileOutput extends EventEmitter {
   // The path to write and read from
   outputPath: string
@@ -190,6 +192,12 @@ class FileOutput extends EventEmitter {
     stream: PassThrough
   }
 
+  /**
+   * @param {string} outputPath Path to the file being written to and read from.
+   * @param {object} options Options about the current file.
+   * @param {boolean} options.fileDoesNotExist=false Set to true for better performance when calling the destroy method if you know for sure the file doesn't exist.
+   * @param {boolean} options.readExisting=true  Whether or not it's okay to read previous content of file.
+   */
   constructor (outputPath: string, options?: Options) {
     super()
     this.outputPath = outputPath
@@ -200,7 +208,7 @@ class FileOutput extends EventEmitter {
   }
 
   /**
-     * Write to file.
+     * Asynchronously write to file.
      *
      * Any of these methods are acceptable:
      * - Directly call with a string or Uint8Array or readable stream
@@ -208,6 +216,9 @@ class FileOutput extends EventEmitter {
      * - Function which returns a promise resolving a string or Uint8Array
      * - Calling callback given to function
      * - Writing or piping to callback
+     * @param builder Either a string, Uint8Array, promise, or function. See description.
+     * @returns {Promise}
+     * @fulfil {void}
      *  */
   async update (builder: Builder): Promise<void> {
     // Cancel the previous update
@@ -367,6 +378,8 @@ class FileOutput extends EventEmitter {
 
   /**
      * Get a string promise of file contents.
+     * @returns {Promise}
+     * @fulfil {string} The contents of the file in utf8.
      */
   async read (): Promise<string> {
     // Wait for file to start being written to
@@ -411,6 +424,7 @@ class FileOutput extends EventEmitter {
 
   /**
      * Get a readable stream of file contents.
+     * @returns {ReadStream|PassThrough}
      */
   readStream (): ReadStream | PassThrough {
     // If the file is written to, read from it
@@ -466,9 +480,8 @@ class FileOutput extends EventEmitter {
   }
 
   /**
-     * Cancel update and unlink file
-     * @param unlinkFile Whether or not to unlink file if it exists
-     * @default true
+     * Cancel update and unlink the file if it exists.
+     * @param unlinkFile=true Whether or not to unlink file if it exists.
      */
   async destroy (unlinkFile: boolean = true): Promise<void> {
     // Emit destroy event (for read)
