@@ -402,7 +402,9 @@ class FileOutput extends EventEmitter {
         }
     }
 
-    // Get a string promise of file contents
+    /**
+     * Get a string promise of file contents.
+     */
     async read() {
         // Wait for file to start being written to
         if (!(this.fileGood || this.writing)) {
