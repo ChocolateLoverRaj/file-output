@@ -8,12 +8,7 @@ type BuilderReturns = string | Uint8Array
 interface BuilderReadable {
     pipe(destination: PassThrough): unknown
 }
-// Any of these methods are acceptable
-// Directly call with a string or Uint8Array or readable stream
-// Function which returns a string or Uint8Array or readable stream
-// Function which returns a promise resolving a string or Uint8Array
-// Calling callback given to function
-// Writing or piping to callback
+// Acceptable update methods
 export type Builder = BuilderReturns | ((callback: Callback) => void | BuilderReturns | Promise<BuilderReturns> | BuilderReadable) | BuilderReadable
 
 // The actual callable function
@@ -235,7 +230,16 @@ class FileOutput extends EventEmitter {
         this.fileGood = !this.fileDoesNotExist && (options?.readExisting ?? true)
     }
 
-    // Write to the file
+    /**
+     * Write to file.
+     * 
+     * Any of these methods are acceptable:
+     * - Directly call with a string or Uint8Array or readable stream
+     * - Function which returns a string or Uint8Array or readable stream
+     * - Function which returns a promise resolving a string or Uint8Array
+     * - Calling callback given to function
+     * - Writing or piping to callback
+     *  */
     async update(builder: Builder) {
         // Cancel the previous update
         const cancelPromise = this.cancel && this.cancel()
