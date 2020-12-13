@@ -293,8 +293,11 @@ class FileOutput extends EventEmitter {
             // Emit write event
             this.emit('write')
             passThrough.on('data', data => {
-                // Add chunk to cache of chunks
-                this.writing?.type === WritingTypes.STREAM && this.writing.cache.push(data)
+                // Throw in garbage if cancelled
+                if (!cancelled) {
+                    // Add chunk to cache of chunks
+                    this.writing?.type === WritingTypes.STREAM && this.writing.cache.push(data)
+                }
             })
             // Wait for existing file operation to be complete before creating write stream
             await cancelPromise
