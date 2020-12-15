@@ -1,6 +1,6 @@
 /**
- * @module file-output
- * Manage reading, writing, and updating files.
+ * @module file-output 
+ * @description Manage reading, writing, and updating files.
  */
 
 import { PassThrough } from 'stream'
