@@ -1,5 +1,6 @@
 /**
  * @module file-output
+ * Manage reading, writing, and updating files.
  */
 
 import { PassThrough } from 'stream'

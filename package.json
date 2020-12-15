@@ -27,8 +27,8 @@
   "scripts": {
     "lint": "ts-standard",
     "build:ts": "tsc",
-    "build:doc": "npm run build:ts && node dev/build",
-    "build": "npm run build:ts & npm run build:doc",
+    "build:doc": "npm run build:ts && jsdoc2md lib/index.js > README.md",
+    "build": "npm run build:ts & jsdoc2md lib/index.js > README.md",
     "prepublishOnly": "npm run build",
     "test": "mocha"
   },
