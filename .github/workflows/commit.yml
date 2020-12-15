@@ -3,7 +3,7 @@ on:
   push:
     branches-ignore: []
 jobs:
-  json:
+  readme:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -12,3 +12,4 @@ jobs:
         with:
           files: 'README.md'
           message: 'Generate README.md'
+          token: ${{ secrets.GITHUB_TOKEN }}
