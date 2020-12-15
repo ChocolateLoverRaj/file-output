@@ -1,0 +1,14 @@
+name: Commit
+on:
+  push:
+    branches-ignore: []
+jobs:
+  json:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Update README
+        uses: ChocolateLoverRaj/npm-version/commit@next
+        with:
+          files: 'README.md'
+          message: 'Generate README.md'
