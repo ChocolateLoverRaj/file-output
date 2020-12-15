@@ -4,8 +4,7 @@
   "description": "Manage reading, writing, and updating files.",
   "main": "lib/index.js",
   "directories": {
-    "lib": "lib",
-    "doc": "doc"
+    "lib": "lib"
   },
   "dependencies": {},
   "devDependencies": {
