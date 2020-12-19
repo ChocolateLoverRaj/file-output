@@ -12,8 +12,8 @@ jobs:
       - run: npm run build
       - uses: ChocolateLoverRaj/npm-version/commit@2.0.0
         with:
-          files: 'doc/API.md'
-          message: 'Generate doc/API.md'
+          files: 'README.md'
+          message: 'Generate README.md'
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: ChocolateLoverRaj/npm-version/merge@2.0.0
         with:
