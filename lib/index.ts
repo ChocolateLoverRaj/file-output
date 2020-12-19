@@ -483,6 +483,8 @@ class FileOutput extends EventEmitter {
   /**
      * Cancel update and unlink the file if it exists.
      * @param unlinkFile=true Whether or not to unlink file if it exists.
+     * @returns {Promise}
+     * @fulfil {void}
      */
   async destroy (unlinkFile: boolean = true): Promise<void> {
     // Emit destroy event (for read)
