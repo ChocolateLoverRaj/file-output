@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: ChocolateLoverRaj/npm-version/check@2.0.0
+      - uses: ChocolateLoverRaj/npm-version/check@next
   freeze:
     runs-on: ubuntu-latest
     steps:
