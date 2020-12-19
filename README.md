@@ -10,7 +10,7 @@ Manage reading, writing, and updating files.
         * [.update(builder)](#module_file-output..FileOutput+update) ⇒ <code>Promise</code>
         * [.read()](#module_file-output..FileOutput+read) ⇒ <code>Promise</code>
         * [.readStream()](#module_file-output..FileOutput+readStream) ⇒ <code>ReadStream</code> \| <code>PassThrough</code>
-        * [.destroy(unlinkFile)](#module_file-output..FileOutput+destroy)
+        * [.destroy(unlinkFile)](#module_file-output..FileOutput+destroy) ⇒ <code>Promise</code>
 
 <a name="module_file-output..FileOutput"></a>
 
@@ -24,7 +24,7 @@ FileOutput class
     * [.update(builder)](#module_file-output..FileOutput+update) ⇒ <code>Promise</code>
     * [.read()](#module_file-output..FileOutput+read) ⇒ <code>Promise</code>
     * [.readStream()](#module_file-output..FileOutput+readStream) ⇒ <code>ReadStream</code> \| <code>PassThrough</code>
-    * [.destroy(unlinkFile)](#module_file-output..FileOutput+destroy)
+    * [.destroy(unlinkFile)](#module_file-output..FileOutput+destroy) ⇒ <code>Promise</code>
 
 <a name="new_module_file-output..FileOutput_new"></a>
 
@@ -71,10 +71,11 @@ Get a readable stream of file contents.
 **Kind**: instance method of [<code>FileOutput</code>](#module_file-output..FileOutput)  
 <a name="module_file-output..FileOutput+destroy"></a>
 
-#### fileOutput.destroy(unlinkFile)
+#### fileOutput.destroy(unlinkFile) ⇒ <code>Promise</code>
 Cancel update and unlink the file if it exists.
 
 **Kind**: instance method of [<code>FileOutput</code>](#module_file-output..FileOutput)  
+**Fulfil**: <code>void</code>  
 
 | Param | Default | Description |
 | --- | --- | --- |
