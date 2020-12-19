@@ -1,11 +1,12 @@
 {
   "name": "file-output",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Manage reading, writing, and updating files.",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "directories": {
-    "lib": "lib"
+    "lib": "lib",
+    "test": "test"
   },
   "dependencies": {},
   "devDependencies": {
