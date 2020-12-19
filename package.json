@@ -1,6 +1,6 @@
 {
   "name": "file-output",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Manage reading, writing, and updating files.",
   "main": "lib/index.js",
   "directories": {
